@@ -9,10 +9,10 @@ use std::sync::Arc;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use tracing_subscriber::EnvFilter;
 
-mod codex_agent;
-mod thread;
 #[cfg(target_os = "android")]
 mod android_pty_stub;
+mod codex_agent;
+mod thread;
 
 /// Run the Codex ACP agent.
 ///

@@ -1,5 +1,5 @@
 #[cfg(target_os = "android")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn openpty(
     _amaster: *mut libc::c_int,
     _aslave: *mut libc::c_int,
