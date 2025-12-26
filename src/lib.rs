@@ -11,6 +11,8 @@ use tokio::task::LocalSet;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use tracing_subscriber::EnvFilter;
 
+#[cfg(target_os = "android")]
+mod android_pty_stub;
 mod codex_agent;
 mod conversation;
 mod local_spawner;
