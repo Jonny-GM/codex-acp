@@ -76,5 +76,4 @@ jobs:
         with:
           name: android-${{ matrix.target }}-release
           path: |
-            target/${{ matrix.target }}/release/*.so
-            target/${{ matrix.target }}/release/*.a
+            target/${{ matrix.target }}/release/codex-acp
