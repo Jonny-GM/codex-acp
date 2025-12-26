@@ -15,6 +15,8 @@ mod codex_agent;
 mod conversation;
 mod local_spawner;
 mod prompt_args;
+#[cfg(target_os = "android")]
+mod android_pty_stub;
 
 pub static ACP_CLIENT: OnceLock<Arc<AgentSideConnection>> = OnceLock::new();
 
