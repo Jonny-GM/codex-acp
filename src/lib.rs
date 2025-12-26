@@ -11,6 +11,8 @@ use tracing_subscriber::EnvFilter;
 
 mod codex_agent;
 mod thread;
+#[cfg(target_os = "android")]
+mod android_pty_stub;
 
 /// Run the Codex ACP agent.
 ///
