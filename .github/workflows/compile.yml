@@ -70,3 +70,11 @@ jobs:
 
       - name: Build release binary
         run: cargo ndk -t ${{ matrix.abi }} build --release
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.target }}-release
+          path: |
+            target/${{ matrix.target }}/release/*.so
+            target/${{ matrix.target }}/release/*.a
