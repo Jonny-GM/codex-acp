@@ -138,6 +138,15 @@ jobs:
           echo "After:"
           grep -n 'test_runner_py\|data_deps' "$target_file" || true
 
+          # gn's rust toolchain config asserts a host Linux sysroot exists.
+          # Run the install script the error message points at.
+          if [ -x "$v8_src/build/linux/sysroot_scripts/install-sysroot.py" ]; then
+            python3 "$v8_src/build/linux/sysroot_scripts/install-sysroot.py" --arch=amd64
+          else
+            echo "install-sysroot.py not found at expected path" >&2
+            exit 1
+          fi
+
       - name: Build librusty_v8 from source
         id: build
         continue-on-error: true
