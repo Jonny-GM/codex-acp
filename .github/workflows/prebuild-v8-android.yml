@@ -152,6 +152,10 @@ jobs:
         continue-on-error: true
         env:
           V8_FROM_SOURCE: "1"
+          # rusty_v8 build.rs reads EXTRA_GN_ARGS. Disable the rust host build
+          # tools toolchain - it's what triggers the chromium_crates_io vendor
+          # tree (icu_calendar_data, etc.) that the v8 crate doesn't bundle.
+          EXTRA_GN_ARGS: "enable_rust_host_build_tools = false"
         run: |
           set -o pipefail
           cargo ndk -t ${{ matrix.abi }} --platform 29 build --release 2>&1 \
