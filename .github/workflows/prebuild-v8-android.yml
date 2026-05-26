@@ -110,12 +110,13 @@ jobs:
       # the static archive; the consuming build uses the bindings shipped with
       # the v8 crate, so a bindgen failure here is non-fatal as long as the
       # archive was produced.
-      # The v8 crate ships an incomplete chromium build/android tree: its
-      # //build/android/BUILD.gn references pydeps files that aren't bundled,
-      # so `gn gen` aborts before any compilation. Stub the missing file -
-      # the target it gates (test_result_presentations_py, a python test
-      # runner) is never built; gn just validates that the path exists.
-      - name: Stub missing pydeps file in v8 crate
+      # The v8 crate ships an incomplete chromium build/android tree. The
+      # //v8/tools/BUILD.gn target lists `data_deps = [ "//build/android:test_runner_py" ]`,
+      # which transitively pulls in python_library targets whose pydeps_file
+      # references aren't bundled in the crate. We never run the test runner,
+      # so drop that one data_deps line; it eliminates the whole tree of
+      # missing-file errors at gn gen.
+      - name: Patch v8 crate to drop test_runner_py data_deps
         env:
           V8_FROM_SOURCE: "1"
         run: |
@@ -126,10 +127,16 @@ jobs:
             exit 1
           fi
           echo "Found v8 source at: $v8_src"
-          stub_dir="$v8_src/build/android/pylib/results/presentation"
-          mkdir -p "$stub_dir"
-          touch "$stub_dir/test_results_presentation.pydeps"
-          ls -la "$stub_dir"
+          target_file="$v8_src/v8/tools/BUILD.gn"
+          if [ ! -f "$target_file" ]; then
+            echo "Expected $target_file not found" >&2
+            exit 1
+          fi
+          echo "Before:"
+          grep -n 'test_runner_py\|data_deps' "$target_file" || true
+          sed -i 's|"//build/android:test_runner_py"||g' "$target_file"
+          echo "After:"
+          grep -n 'test_runner_py\|data_deps' "$target_file" || true
 
       - name: Build librusty_v8 from source
         id: build
