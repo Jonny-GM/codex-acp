@@ -55,6 +55,22 @@ jobs:
           sudo ./llvm.sh 19
           echo "LIBCLANG_PATH=/usr/lib/llvm-19/lib" >> "$GITHUB_ENV"
 
+      # The v8 build script fetches gn/ninja from Chromium's *legacy* CIPD
+      # Cloud-Endpoints API (tools/ninja_gn_binaries.py -> /_ah/api/...), which
+      # is deprecated and fails. It skips that download entirely when both the
+      # GN and NINJA env vars point at binaries (and need_gn_ninja_download
+      # ignores anything under depot_tools, so we must supply our own gn).
+      # Building gn from source is small and avoids the broken endpoint; every
+      # other download in the build uses direct GCS/git and works on a runner.
+      - name: Provide gn and ninja
+        run: |
+          git clone --depth 1 https://gn.googlesource.com/gn /tmp/gn-src
+          cd /tmp/gn-src
+          python3 build/gen.py
+          ninja -C out gn
+          echo "GN=/tmp/gn-src/out/gn" >> "$GITHUB_ENV"
+          echo "NINJA=$(command -v ninja)" >> "$GITHUB_ENV"
+
       - name: Determine v8 version
         id: v8ver
         run: |
@@ -72,10 +88,26 @@ jobs:
       # the v8 crate, so a bindgen failure here is non-fatal as long as the
       # archive was produced.
       - name: Build librusty_v8 from source
+        id: build
         continue-on-error: true
         env:
           V8_FROM_SOURCE: "1"
-        run: cargo build -p v8 --target ${{ matrix.target }} --release
+        run: |
+          set -o pipefail
+          cargo build -p v8 --target ${{ matrix.target }} --release 2>&1 \
+            | tee /tmp/v8build.log
+
+      - name: Show build log tail
+        if: always()
+        run: tail -n 200 /tmp/v8build.log || true
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-build-log-${{ matrix.target }}
+          path: /tmp/v8build.log
+          if-no-files-found: ignore
 
       - name: Package archive
         id: package
