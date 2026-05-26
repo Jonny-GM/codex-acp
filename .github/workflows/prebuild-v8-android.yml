@@ -12,6 +12,11 @@ name: Prebuild librusty_v8 (Android)
 
 on:
   workflow_dispatch:
+  # The manual "Run workflow" dispatch has been failing to queue on this repo.
+  # Pushing to this dedicated branch is an alternate, equivalent trigger; the
+  # branch only exists to start this build, nothing merges from it.
+  push:
+    branches: [prebuild-v8]
 
 permissions:
   contents: write
