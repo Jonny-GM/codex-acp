@@ -1,10 +1,12 @@
 name: Compile
 
+# Disabled from automatic triggers. This workflow consumes the librusty_v8.a
+# release published by prebuild-v8-android.yml, which currently cannot
+# complete (see that file's header comment and rusty_v8 issue #1895). Until
+# upstream rusty_v8 supports Android, every auto-run of this would 404 on
+# the missing release tag and spam failure notifications. Keep workflow_dispatch
+# so it can be invoked manually after a successful prebuild.
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
   workflow_dispatch:
 
 env:

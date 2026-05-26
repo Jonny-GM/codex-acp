@@ -55,6 +55,32 @@ Or via npm:
 npx @zed-industries/codex-acp
 ```
 
+## Android support (fork-specific)
+
+This fork was created to add Android cross-compilation. **It does not currently
+work.** After upstream codex rebased onto codex-core with a hard dependency on
+`codex-code-mode`, which depends on the `v8` Rust crate, building for Android
+is blocked by upstream brokenness in `denoland/rusty_v8` v147.4.0:
+
+- rusty_v8 ships no Android prebuilts (CI matrix excludes Android).
+- `V8_FROM_SOURCE=1` cross-compile to `aarch64-linux-android` fails because
+  the published `v8` crate's bundled chromium build tree is incomplete
+  (missing `build/android/**/*.pydeps` files, then missing
+  `third_party/rust/chromium_crates_io/vendor/`).
+- The only community fork tracking Android (ThetaDev/rusty_v8) is on V8 130.x,
+  which codex-code-mode's API (`PinScope`, `callback_scope!`, new
+  `Context::new` signature) is incompatible with.
+
+Tracking: [rusty_v8 #1895](https://github.com/denoland/rusty_v8/issues/1895).
+
+See `.github/workflows/prebuild-v8-android.yml` for the partial-progress
+patches discovered in this fork (pydeps stubs, BUILD.gn data_deps removal,
+install-sysroot, etc.) — useful as a starting point if upstream gets fixed
+or someone wants to take another swing.
+
+In the meantime, run codex-acp on a Linux host and connect to it from
+Android over the network; no on-device build needed.
+
 ## License
 
 Apache-2.0

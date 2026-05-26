@@ -2,13 +2,43 @@ name: Prebuild librusty_v8 (Android)
 
 # codex-code-mode (a hard dependency of codex-core) pulls in the `v8` crate,
 # and denoland/rusty_v8 publishes no Android static-lib prebuilt. This workflow
-# builds librusty_v8 from source for the Android targets once per v8 version and
-# publishes the archives as a release, which the Compile workflow then consumes
-# via RUSTY_V8_ARCHIVE.
+# was intended to build librusty_v8 from source for Android once per v8 version
+# and publish the archive as a release, which the Compile workflow would then
+# consume via RUSTY_V8_ARCHIVE.
 #
-# Run manually (Actions -> Prebuild librusty_v8 (Android) -> Run workflow) after
-# the v8 version in Cargo.lock changes. The build is heavy (V8 from source,
-# ~1-2h and tens of GB of disk per target).
+# STATUS: BROKEN UPSTREAM. v8 v147.4.0 cannot be built from source for
+# aarch64-linux-android via the published `v8` crate's V8_FROM_SOURCE=1 path,
+# tracked at https://github.com/denoland/rusty_v8/issues/1895. The crate ships
+# an incomplete chromium build tree: build/android/BUILD.gn references pydeps
+# files that aren't bundled, third_party/rust/chromium_crates_io/vendor/ is
+# missing entirely, and the chromium_crates_io tree is needed by the host
+# toolchain target `clang_x64_for_rust_host_build_tools` (ICU data generation).
+#
+# What this workflow already works around, in order:
+#   - Full gn clone (not --depth 1) so gn's build/gen.py can `git describe`
+#     the initial-commit tag.
+#   - Build gn from source instead of CIPD (deprecated /_ah/api endpoint).
+#   - cargo-ndk + ANDROID_NDK_HOME set so the v8 build script's Android path
+#     fires.
+#   - Stub `build/android/pylib/results/presentation/test_results_presentation.pydeps`.
+#   - sed out `data_deps = [ "//build/android:test_runner_py" ]` from
+#     //v8/tools/BUILD.gn, which transitively pulled in the entire missing
+#     pydeps cascade.
+#   - Run build/linux/sysroot_scripts/install-sysroot.py for the host x64
+#     sysroot, required by rust toolchain config.
+#   - EXTRA_GN_ARGS attempt to disable rust host build tools (the actual gn
+#     flag name is unknown; the guess `enable_rust_host_build_tools = false`
+#     is not declared anywhere in chromium's build config).
+#
+# Next blocker: ninja fails with
+#   missing: third_party/rust/chromium_crates_io/vendor/icu_calendar_data-v2/build.rs
+# This is the start of an unknown-depth cascade of vendored chromium Rust
+# crates that the v8 crate doesn't ship. Resolving it likely requires either
+# (a) finding the correct gn arg to disable rust host build tools, or
+# (b) reconstructing a `gclient`-style checkout that populates these third-
+# party crate sources.
+#
+# Workflow is left intact and dispatchable for future debugging.
 
 on:
   workflow_dispatch:
