@@ -64,7 +64,10 @@ jobs:
       # other download in the build uses direct GCS/git and works on a runner.
       - name: Provide gn and ninja
         run: |
-          git clone --depth 1 https://gn.googlesource.com/gn /tmp/gn-src
+          # Full clone (not --depth 1): gn's build/gen.py runs
+          # `git describe --match initial-commit` to derive its version, which
+          # needs the tag history a shallow clone omits.
+          git clone https://gn.googlesource.com/gn /tmp/gn-src
           cd /tmp/gn-src
           python3 build/gen.py
           ninja -C out gn
