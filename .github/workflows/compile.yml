@@ -68,7 +68,23 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
+      # rusty_v8 (pulled in by codex-code-mode -> codex-core) ships no Android
+      # prebuilt, so point its build script at our own hosted static lib. The
+      # archive must be published by the prebuild-v8-android workflow first.
+      - name: Determine prebuilt V8 version
+        id: v8ver
+        run: |
+          version=$(awk '/^name = "v8"$/{getline; print; exit}' Cargo.lock \
+            | sed -E 's/version = "(.+)"/\1/')
+          if [ -z "$version" ]; then
+            echo "Could not determine v8 version from Cargo.lock" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Build release binary
+        env:
+          RUSTY_V8_ARCHIVE: https://github.com/${{ github.repository }}/releases/download/librusty_v8-v${{ steps.v8ver.outputs.version }}/librusty_v8_release_${{ matrix.target }}.a.gz
         run: cargo ndk -t ${{ matrix.abi }} build --release
 
       - name: Upload Android artifacts

@@ -1,0 +1,102 @@
+name: Prebuild librusty_v8 (Android)
+
+# codex-code-mode (a hard dependency of codex-core) pulls in the `v8` crate,
+# and denoland/rusty_v8 publishes no Android static-lib prebuilt. This workflow
+# builds librusty_v8 from source for the Android targets once per v8 version and
+# publishes the archives as a release, which the Compile workflow then consumes
+# via RUSTY_V8_ARCHIVE.
+#
+# Run manually (Actions -> Prebuild librusty_v8 (Android) -> Run workflow) after
+# the v8 version in Cargo.lock changes. The build is heavy (V8 from source,
+# ~1-2h and tens of GB of disk per target).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Prebuild librusty_v8 - ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Run sequentially so both jobs upsert the same release without racing on
+      # its creation.
+      max-parallel: 1
+      matrix:
+        target:
+          - aarch64-linux-android
+          - x86_64-linux-android
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # V8 from source needs a lot of free space.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 ninja-build curl unzip lsb-release wget software-properties-common gnupg
+          # rusty_v8's bindgen step requires Clang 19+.
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 19
+          echo "LIBCLANG_PATH=/usr/lib/llvm-19/lib" >> "$GITHUB_ENV"
+
+      - name: Determine v8 version
+        id: v8ver
+        run: |
+          version=$(awk '/^name = "v8"$/{getline; print; exit}' Cargo.lock \
+            | sed -E 's/version = "(.+)"/\1/')
+          if [ -z "$version" ]; then
+            echo "Could not determine v8 version from Cargo.lock" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Builds librusty_v8.a from source for the target. The v8 build script
+      # downloads its own NDK and configures the Android gn args. We only need
+      # the static archive; the consuming build uses the bindings shipped with
+      # the v8 crate, so a bindgen failure here is non-fatal as long as the
+      # archive was produced.
+      - name: Build librusty_v8 from source
+        continue-on-error: true
+        env:
+          V8_FROM_SOURCE: "1"
+        run: cargo build -p v8 --target ${{ matrix.target }} --release
+
+      - name: Package archive
+        id: package
+        run: |
+          lib=$(find target/${{ matrix.target }}/release -name librusty_v8.a | head -1)
+          if [ -z "$lib" ]; then
+            echo "librusty_v8.a was not produced" >&2
+            exit 1
+          fi
+          out="librusty_v8_release_${{ matrix.target }}.a.gz"
+          gzip -c "$lib" > "$out"
+          ls -la "$out"
+          echo "asset=$out" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: librusty_v8-v${{ steps.v8ver.outputs.version }}
+          name: librusty_v8 ${{ steps.v8ver.outputs.version }} (Android)
+          body: |
+            Android static-lib prebuilts of librusty_v8 ${{ steps.v8ver.outputs.version }},
+            built from source because denoland/rusty_v8 publishes none. Consumed by
+            the Compile workflow via RUSTY_V8_ARCHIVE.
+          files: ${{ steps.package.outputs.asset }}
