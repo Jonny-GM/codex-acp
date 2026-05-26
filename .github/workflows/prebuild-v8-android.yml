@@ -110,6 +110,27 @@ jobs:
       # the static archive; the consuming build uses the bindings shipped with
       # the v8 crate, so a bindgen failure here is non-fatal as long as the
       # archive was produced.
+      # The v8 crate ships an incomplete chromium build/android tree: its
+      # //build/android/BUILD.gn references pydeps files that aren't bundled,
+      # so `gn gen` aborts before any compilation. Stub the missing file -
+      # the target it gates (test_result_presentations_py, a python test
+      # runner) is never built; gn just validates that the path exists.
+      - name: Stub missing pydeps file in v8 crate
+        env:
+          V8_FROM_SOURCE: "1"
+        run: |
+          cargo fetch --target ${{ matrix.target }}
+          v8_src=$(find ~/.cargo/registry/src -maxdepth 3 -type d -name "v8-147.4.0" | head -1)
+          if [ -z "$v8_src" ]; then
+            echo "Could not find v8 crate source" >&2
+            exit 1
+          fi
+          echo "Found v8 source at: $v8_src"
+          stub_dir="$v8_src/build/android/pylib/results/presentation"
+          mkdir -p "$stub_dir"
+          touch "$stub_dir/test_results_presentation.pydeps"
+          ls -la "$stub_dir"
+
       - name: Build librusty_v8 from source
         id: build
         continue-on-error: true
