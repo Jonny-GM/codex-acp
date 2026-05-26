@@ -28,8 +28,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - aarch64-linux-android
+        include:
+          - target: aarch64-linux-android
+            abi: arm64-v8a
 
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +56,22 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh 19
           echo "LIBCLANG_PATH=/usr/lib/llvm-19/lib" >> "$GITHUB_ENV"
+
+      # Per rusty_v8 issue #1895 suggestion: drive the build through cargo-ndk
+      # with ANDROID_NDK_HOME set, so the v8 build script's Android code path
+      # picks up a real NDK location instead of falling through to a default
+      # config that pulls in unbundled chromium build/android/* targets.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager "ndk;26.1.10909125"
+          echo "ANDROID_NDK_ROOT=${ANDROID_HOME}/ndk/26.1.10909125" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/26.1.10909125" >> "$GITHUB_ENV"
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
 
       # The v8 build script fetches gn/ninja from Chromium's *legacy* CIPD
       # Cloud-Endpoints API (tools/ninja_gn_binaries.py -> /_ah/api/...), which
@@ -98,7 +115,7 @@ jobs:
           V8_FROM_SOURCE: "1"
         run: |
           set -o pipefail
-          cargo build -p v8 --target ${{ matrix.target }} --release 2>&1 \
+          cargo ndk -t ${{ matrix.abi }} -p 29 build -p v8 --release 2>&1 \
             | tee /tmp/v8build.log
 
       - name: Show build log tail
