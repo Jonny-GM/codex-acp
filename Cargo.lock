@@ -1614,6 +1614,8 @@ dependencies = [
  "diffy",
  "heck",
  "itertools 0.14.0",
+ "libc",
+ "openssl-sys",
  "serde",
  "serde_json",
  "shlex",
