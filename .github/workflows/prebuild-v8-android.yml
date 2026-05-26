@@ -35,10 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # V8 from source needs a lot of free space.
+      # V8 from source needs a lot of free space. Keep /usr/local/lib/android
+      # so the later setup-android step can write into the preinstalled SDK
+      # location without hitting EACCES on its parent dir.
       - name: Free disk space
         run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
             /opt/hostedtoolcache/CodeQL /usr/local/share/boost
           df -h /
 
