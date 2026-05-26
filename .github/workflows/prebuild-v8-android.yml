@@ -27,13 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      # Run sequentially so both jobs upsert the same release without racing on
-      # its creation.
-      max-parallel: 1
       matrix:
         target:
           - aarch64-linux-android
-          - x86_64-linux-android
 
     steps:
       - uses: actions/checkout@v4
