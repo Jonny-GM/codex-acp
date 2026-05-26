@@ -117,7 +117,7 @@ jobs:
           V8_FROM_SOURCE: "1"
         run: |
           set -o pipefail
-          cargo ndk -t ${{ matrix.abi }} --platform 29 build -p v8 --release 2>&1 \
+          cargo ndk -t ${{ matrix.abi }} --platform 29 build --release 2>&1 \
             | tee /tmp/v8build.log
 
       - name: Show build log tail
